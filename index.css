@@ -859,8 +859,8 @@ button.danger .icon {
 }
 
 .barcode-container canvas {
-  width: 75px !important; /* ~15mm for preview */
-  height: 75px !important;
+  width: 55px !important; /* ~11mm for preview */
+  height: 55px !important;
 }
 
 /* Print Specific Styles */
@@ -906,8 +906,8 @@ button.danger .icon {
     letter-spacing: 0.5px;
   }
   .barcode-container canvas {
-    width: 15mm !important;
-    height: 15mm !important;
+    width: 11mm !important;
+    height: 11mm !important;
     margin: 0.5mm 0;
   }
 }
