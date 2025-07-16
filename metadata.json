@@ -1,0 +1,8 @@
+{
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "name": "Controle estoque 10.07 1.1",
+  "description": "",
+  "prompt": ""
+}
