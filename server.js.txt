@@ -1,0 +1,126 @@
+// server.js
+const express = require('express');
+const path = require('path');
+const cors = require('cors'); // Adicione esta linha para lidar com CORS
+require('dotenv').config(); // Para carregar variáveis de ambiente do .env.local
+
+// Importa as funções do banco de dados
+const { initDatabase, adicionarItem, listarItens, atualizarQuantidade, deletarItem } = require('./database'); 
+
+const app = express();
+
+// --- Configurações do Middleware ---
+app.use(express.json()); // Habilita o Express a ler JSON no corpo das requisições
+
+// Configuração do CORS (Cross-Origin Resource Sharing)
+// Necessário para permitir que seu frontend (se estiver em um domínio diferente, ou mesmo localmente)
+// se comunique com este backend. Para produção, refine para domínios específicos.
+app.use(cors()); 
+
+// --- Servindo Arquivos Estáticos do Frontend ---
+// ATENÇÃO: Ajuste este caminho conforme a localização do seu index.html
+// Cenário A: Se index.html e outros arquivos frontend estão na RAIZ do projeto
+app.use(express.static(__dirname)); 
+
+// Cenário B: Se index.html e outros arquivos frontend estão dentro de uma pasta 'public'
+// Remova a linha acima (app.use(express.static(__dirname));)
+// E use esta:
+// app.use(express.static(path.join(__dirname, 'public'))); 
+
+// Cenário C: Se o server.js estiver em uma subpasta (ex: 'backend') e o frontend na raiz
+// Remova a linha do cenário A
+// E use esta (ajuste '..' conforme o nível de pasta):
+// app.use(express.static(path.join(__dirname, '..'))); 
+
+// --- Inicialização do Banco de Dados ---
+// Esta função cria a tabela 'itens_almoxarifado' se ela não existir.
+// Chame-a uma vez ao iniciar o servidor.
+initDatabase();
+
+// --- Rotas da API para o Gerenciamento do Almoxarifado ---
+
+// Rota para adicionar um novo item
+app.post('/api/itens', async (req, res) => {
+    const { nome, quantidade, unidade, localizacao } = req.body;
+    if (!nome || quantidade === undefined) {
+        return res.status(400).json({ error: 'Nome e quantidade são obrigatórios.' });
+    }
+    try {
+        const novoItem = await adicionarItem(nome, quantidade, unidade, localizacao);
+        res.status(201).json(novoItem);
+    } catch (error) {
+        console.error('Erro ao adicionar item:', error);
+        res.status(500).json({ error: 'Erro interno do servidor ao adicionar item.' });
+    }
+});
+
+// Rota para listar todos os itens
+app.get('/api/itens', async (req, res) => {
+    try {
+        const itens = await listarItens();
+        res.json(itens);
+    } catch (error) {
+        console.error('Erro ao listar itens:', error);
+        res.status(500).json({ error: 'Erro interno do servidor ao listar itens.' });
+    }
+});
+
+// Rota para atualizar a quantidade de um item (por ID)
+app.put('/api/itens/:id', async (req, res) => {
+    const { id } = req.params;
+    const { quantidade } = req.body;
+    if (quantidade === undefined) {
+        return res.status(400).json({ error: 'Nova quantidade é obrigatória.' });
+    }
+    try {
+        const itemAtualizado = await atualizarQuantidade(id, quantidade);
+        if (itemAtualizado) {
+            res.json(itemAtualizado);
+        } else {
+            res.status(404).json({ error: 'Item não encontrado.' });
+        }
+    } catch (error) {
+        console.error('Erro ao atualizar quantidade:', error);
+        res.status(500).json({ error: 'Erro interno do servidor ao atualizar item.' });
+    }
+});
+
+// Rota para deletar um item (por ID)
+app.delete('/api/itens/:id', async (req, res) => {
+    const { id } = req.params;
+    try {
+        const itemDeletado = await deletarItem(id);
+        if (itemDeletado) {
+            res.json({ message: 'Item deletado com sucesso.', item: itemDeletado });
+        } else {
+            res.status(404).json({ error: 'Item não encontrado.' });
+        }
+    } catch (error) {
+        console.error('Erro ao deletar item:', error);
+        res.status(500).json({ error: 'Erro interno do servidor ao deletar item.' });
+    }
+});
+
+// --- Rota Principal para o Frontend ---
+// Se você está servindo o index.html da raiz, esta rota não é estritamente necessária
+// pois o express.static já lida com '/'. Mas é útil para garantir.
+app.get('/', (req, res) => {
+    // ATENÇÃO: Ajuste este caminho conforme a localização do seu index.html
+    // Cenário A: Se index.html está na RAIZ
+    res.sendFile(path.join(__dirname, 'index.html'));
+    
+    // Cenário B: Se index.html está dentro de uma pasta 'public'
+    // res.sendFile(path.join(__dirname, 'public', 'index.html'));
+
+    // Cenário C: Se o server.js estiver em uma subpasta e o index.html na raiz do projeto
+    // res.sendFile(path.join(__dirname, '..', 'index.html'));
+});
+
+
+// --- Inicialização do Servidor ---
+const PORT = process.env.PORT || 3000; // Usa a porta definida pelo ambiente (Vercel) ou 3000 localmente
+app.listen(PORT, () => {
+    console.log(`Servidor de Almoxarifado rodando na porta ${PORT}`);
+    console.log(`Acesse o frontend em http://localhost:${PORT}`);
+    console.log(`APIs disponíveis em http://localhost:${PORT}/api/itens`);
+});

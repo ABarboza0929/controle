@@ -24,14 +24,14 @@ dist-ssr
 *.sw?
 
 # Node modules
-node_modules
+node_modules/
 
 # Environment variables
 .env.local
 .env
 
 # Build output
-.vercel
+.vercel/
 .next
-dist
-build
+dist/
+build/

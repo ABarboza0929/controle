@@ -1,0 +1,99 @@
+// database.js
+const { Pool } = require('pg');
+
+const connectionString = process.env.DATABASE_URL;
+
+if (!connectionString) {
+    console.error('ERRO: DATABASE_URL não está configurada nas variáveis de ambiente!');
+    // É crucial que essa variável esteja definida para o aplicativo funcionar.
+    // Em produção (Vercel), ela virá das variáveis de ambiente do Vercel.
+    // Em desenvolvimento (localmente), ela virá do seu .env.local.
+}
+
+const pool = new Pool({
+    connectionString: connectionString,
+    ssl: {
+        rejectUnauthorized: false // Permite que a conexão SSL seja feita mesmo com certificados auto-assinados.
+                                 // Pode ser necessário para alguns ambientes de nuvem como Render ou Vercel.
+                                 // Para produção em grande escala, é ideal gerenciar certificados de forma mais robusta.
+    }
+});
+
+// Função para testar a conexão e criar a tabela 'itens_almoxarifado' se ela não existir.
+async function initDatabase() {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS itens_almoxarifado (
+                id SERIAL PRIMARY KEY,
+                nome VARCHAR(255) NOT NULL,
+                quantidade INT NOT NULL CHECK (quantidade >= 0),
+                unidade VARCHAR(50),
+                localizacao VARCHAR(100),
+                data_ultima_movimentacao TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+        console.log('Tabela "itens_almoxarifado" verificada/criada com sucesso!');
+    } catch (error) {
+        console.error('Erro ao inicializar o banco de dados:', error);
+        // Opcional: process.exit(1) para parar o app se o DB não puder ser inicializado.
+        // Cuidado com isso em produção, talvez você queira tentar novamente ou logar.
+    }
+}
+
+// Funções CRUD (Create, Read, Update, Delete) para itens do almoxarifado
+
+async function adicionarItem(nome, quantidade, unidade, localizacao) {
+    try {
+        const result = await pool.query(
+            'INSERT INTO itens_almoxarifado (nome, quantidade, unidade, localizacao) VALUES ($1, $2, $3, $4) RETURNING *',
+            [nome, quantidade, unidade, localizacao]
+        );
+        return result.rows[0];
+    } catch (error) {
+        console.error('Erro ao adicionar item:', error);
+        throw error; // Re-lança o erro para ser tratado pela rota da API
+    }
+}
+
+async function listarItens() {
+    try {
+        const result = await pool.query('SELECT * FROM itens_almoxarifado ORDER BY nome ASC');
+        return result.rows;
+    } catch (error) {
+        console.error('Erro ao listar itens:', error);
+        throw error;
+    }
+}
+
+async function atualizarQuantidade(itemId, novaQuantidade) {
+    try {
+        const result = await pool.query(
+            'UPDATE itens_almoxarifado SET quantidade = $1, data_ultima_movimentacao = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
+            [novaQuantidade, itemId]
+        );
+        return result.rows[0]; // Retorna o item atualizado, se encontrado
+    } catch (error) {
+        console.error('Erro ao atualizar quantidade:', error);
+        throw error;
+    }
+}
+
+async function deletarItem(itemId) {
+    try {
+        const result = await pool.query('DELETE FROM itens_almoxarifado WHERE id = $1 RETURNING *', [itemId]);
+        return result.rows[0]; // Retorna o item deletado, se encontrado
+    } catch (error) {
+        console.error('Erro ao deletar item:', error);
+        throw error;
+    }
+}
+
+// Exporta as funções para serem usadas pelo server.js
+module.exports = {
+    pool, // O pool de conexão, caso você precise de operações SQL mais diretas em outras partes do seu app
+    initDatabase,
+    adicionarItem,
+    listarItens,
+    atualizarQuantidade,
+    deletarItem
+};
