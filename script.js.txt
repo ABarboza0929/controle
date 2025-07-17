@@ -1,0 +1,31 @@
+// No seu script.js
+async function adicionarNovoItem(event) {
+    event.preventDefault(); // Impede o envio padrão do formulário
+    const nome = document.getElementById('nomeItem').value;
+    const quantidade = parseInt(document.getElementById('quantidadeItem').value);
+    const unidade = document.getElementById('unidadeItem').value;
+    const localizacao = document.getElementById('localizacaoItem').value;
+
+    try {
+        const response = await fetch('/api/itens', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ nome, quantidade, unidade, localizacao })
+        });
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const newItem = await response.json();
+        console.log('Item adicionado com sucesso:', newItem);
+        // Atualize a lista de itens na página ou limpe o formulário
+        carregarItensDoAlmoxarifado(); // Recarrega a lista para mostrar o novo item
+    } catch (error) {
+        console.error('Erro ao adicionar item:', error);
+        // Exiba uma mensagem de erro no HTML
+    }
+}
+
+// Supondo que você tenha um formulário com id 'formAdicionarItem'
+// document.getElementById('formAdicionarItem').addEventListener('submit', adicionarNovoItem);
